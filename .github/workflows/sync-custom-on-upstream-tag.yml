@@ -1,0 +1,190 @@
+name: Sync custom branch with upstream tags
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: custom
+          fetch-depth: 0
+
+      - name: Determine latest upstream tag
+        id: upstream
+        run: |
+          latest_tag=$(git ls-remote --tags --sort='-v:refname' https://github.com/microsoft/vcpkg.git |
+            awk '{print $2}' |
+            sed 's#refs/tags/##' |
+            grep -v '\^{}' |
+            head -n1)
+          if [ -z "$latest_tag" ]; then
+            echo "Failed to determine latest upstream tag" >&2
+            exit 1
+          fi
+          echo "Latest upstream tag: $latest_tag"
+          echo "tag=$latest_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          if git rev-parse -q --verify "refs/tags/${{ steps.upstream.outputs.tag }}" >/dev/null; then
+            echo "Tag ${{ steps.upstream.outputs.tag }} already exists."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag ${{ steps.upstream.outputs.tag }} does not exist."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure Git
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Prepare remotes
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          if ! git remote get-url upstream >/dev/null 2>&1; then
+            git remote add upstream https://github.com/microsoft/vcpkg.git
+          fi
+          git fetch origin
+          git fetch upstream
+
+      - name: Create Nginx config
+        run: |
+          cat > proxy.conf << 'NGINX'
+            error_log /dev/stderr info;
+            access_log /dev/stdout;
+
+            server {
+                listen 0.0.0.0:8080;
+                server_name _;
+
+                proxy_headers_hash_max_size 8192;
+                proxy_buffer_size 128k;
+                proxy_buffers 4 256k;
+                proxy_busy_buffers_size 256k;
+
+                location ^~ /repo/extras/github_api/ {
+                    proxy_pass https://github.com/;
+                    proxy_set_header Host github.com;
+                    proxy_ssl_name github.com;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/sourceforge/ {
+                    proxy_pass https://sourceforge.net/;
+                    proxy_set_header Host sourceforge.net;
+                    proxy_ssl_name sourceforge.net;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/extras/microsoft/ {
+                    proxy_pass https://download.microsoft.com/;
+                    proxy_set_header Host download.microsoft.com;
+                    proxy_ssl_name download.microsoft.com;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/conan_sourceware/ { 
+                    proxy_pass https://sourceware.org/;
+                    proxy_set_header Host sourceware.org;
+                    proxy_ssl_name sourceware.org;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/nuget_org/ {
+                    proxy_pass https://www.nuget.org/;
+                    proxy_set_header Host www.nuget.org;
+                    proxy_ssl_name www.nuget.org;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/google_dl/ {
+                    proxy_pass https://dl.google.com/;
+                    proxy_set_header Host dl.google.com;
+                    proxy_ssl_name dl.google.com;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/go/google_storage/ {
+                    proxy_pass https://storage.googleapis.com/;
+                    proxy_set_header Host storage.googleapis.com;
+                    proxy_ssl_name storage.googleapis.com;
+                    proxy_ssl_server_name on;
+                }
+            }
+          NGINX
+
+      - name: Run Nginx in Docker
+        run: |
+          docker run -d --name proxy \
+            -p 127.0.0.1:8080:8080 \
+            -v "$PWD/proxy.conf":/etc/nginx/conf.d/default.conf:ro \
+            nginx:alpine
+          # не работает без следующей команды
+          docker exec -t proxy sh -lc 'apk add --no-cache curl bind-tools > /dev/null && \
+          getent hosts github.com && \
+          getent hosts objects.githubusercontent.com && \
+          curl -I https://github.com'
+
+      - name: Bootstrap vcpkg
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          ./bootstrap-vcpkg.sh -disableMetrics
+        env:
+            VCPKG_PROXY: http://127.0.0.1:8080
+            VCPKG_DISABLE_METRICS: 1
+        
+
+      - name: Update versions data
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          ./vcpkg x-add-version boost-cmake --overwrite-version --vcpkg-root=.
+          ./vcpkg x-add-version openssl --overwrite-version --vcpkg-root=.
+          ./vcpkg x-add-version argparse --overwrite-version --vcpkg-root=.
+          ./vcpkg x-add-version --all --vcpkg-root=.
+        env:
+            VCPKG_PROXY: http://127.0.0.1:8080
+            VCPKG_DISABLE_METRICS: 1
+
+      - name: Commit updates
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "Update versions for ${{ steps.upstream.outputs.tag }}"
+          else
+            echo "No changes detected after running x-add-version."
+          fi
+
+      - name: Rebase onto origin/master
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git fetch origin master
+          git rebase origin/master
+
+      - name: Push custom branch
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git push --force-with-lease origin HEAD:custom
+
+      - name: Create tag
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git tag ${{ steps.upstream.outputs.tag }}
+          git push origin ${{ steps.upstream.outputs.tag }}
+
+      - name: Create GitHub release
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.upstream.outputs.tag }}
+          release_name: ${{ steps.upstream.outputs.tag }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
