@@ -1,0 +1,158 @@
+name: Test proxy
+
+on: workflow_call
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create Nginx config
+        run: |
+          cat > proxy.conf << 'NGINX'
+            error_log /dev/stderr info;
+            access_log /dev/stdout;
+
+            server {
+                listen 0.0.0.0:8443 ssl;
+                ssl_certificate     /etc/nginx/tls/nginx.crt;
+                ssl_certificate_key /etc/nginx/tls/nginx.key;
+                server_name _;
+
+                auth_basic "Toy repo proxy";
+                auth_basic_user_file /etc/nginx/.htpasswd;
+
+                # IMPORTANT: don't forward client creds to upstreams
+                proxy_pass_request_headers off;
+
+                proxy_headers_hash_max_size 8192;
+                proxy_buffer_size 128k;
+                proxy_buffers 4 256k;
+                proxy_busy_buffers_size 256k;
+
+                location ^~ /repo/extras/github_api/ {
+                    proxy_pass https://github.com/;
+                    proxy_set_header Host github.com;
+                    proxy_ssl_name github.com;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/sourceforge/ {
+                    proxy_pass https://sourceforge.net/;
+                    proxy_set_header Host sourceforge.net;
+                    proxy_ssl_name sourceforge.net;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/extras/microsoft/ {
+                    proxy_pass https://download.microsoft.com/;
+                    proxy_set_header Host download.microsoft.com;
+                    proxy_ssl_name download.microsoft.com;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/conan_sourceware/ { 
+                    proxy_pass https://sourceware.org/;
+                    proxy_set_header Host sourceware.org;
+                    proxy_ssl_name sourceware.org;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/nuget_org/ {
+                    proxy_pass https://www.nuget.org/;
+                    proxy_set_header Host www.nuget.org;
+                    proxy_ssl_name www.nuget.org;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/google_dl/ {
+                    proxy_pass https://dl.google.com/;
+                    proxy_set_header Host dl.google.com;
+                    proxy_ssl_name dl.google.com;
+                    proxy_ssl_server_name on;
+                }
+                location ^~ /repo/go/google_storage/ {
+                    proxy_pass https://storage.googleapis.com/;
+                    proxy_set_header Host storage.googleapis.com;
+                    proxy_ssl_name storage.googleapis.com;
+                    proxy_ssl_server_name on;
+                }
+            }
+          NGINX
+
+      - name: Run Nginx in Docker
+        run: |
+          echo 'user:$1$salt$bD2zrbw4E9L9ylz6WgvhW1' > .htpasswd
+          mkdir tls
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout tls/nginx.key -out tls/nginx.crt -subj "/CN=127.0.0.1"
+          docker run -d --name proxy \
+            -p 127.0.0.1:8443:8443 \
+            -v "$PWD/proxy.conf":/etc/nginx/conf.d/default.conf:ro \
+            -v $PWD/.htpasswd:/etc/nginx/.htpasswd:ro \
+            -v $PWD/tls:/etc/nginx/tls:ro \
+            nginx:alpine
+          # не работает без следующей команды
+          docker exec -t proxy sh -lc 'apk add --no-cache curl bind-tools > /dev/null && \
+          getent hosts github.com && \
+          getent hosts objects.githubusercontent.com && \
+          curl -I https://github.com'
+
+      - name: Create vcpkg filesystem registry
+        run: |
+            cmake -DSOURCE_REGISTRY_DIR=. -DBASELINE=123 -DDST_DIR=export -P filesystem_registry.cmake
+
+      - name: Check vcpkg in classic mode
+        run: |
+            ./export/vcpkg --vcpkg-root=./export install --only-downloads nlohmann-json zlib mip-protection-sdk avro-cpp minio-cpp
+            # vcpkg install --only-downloads nlohmann-json zlib mip-protection-sdk avro-cpp minio-cpp
+            # vcpkg install argparse
+        env:
+            VCPKG_ROOT: ${{ github.workspace }}/export
+            X_VCPKG_ASSET_SOURCES: "clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY=127.0.0.1:8443 -DTLS_VERIFY=OFF -DPROXY_USERNAME=user -DPROXY_PASSWORD=123 -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"
+
+      - name: Check vcpkg in manifest mode
+        run: |
+          cat > vcpkg.json << 'JSON'
+            {
+                "dependencies": [
+                    "nlohmann-json",
+                    "argparse",
+                    "mip-protection-sdk"
+                ]
+            }
+          JSON
+          cat > vcpkg-configuration.json << 'CONF'
+            {
+              "default-registry": {
+                "kind": "filesystem",
+                "path": "${{ github.workspace }}/export",
+                "baseline": "123"
+              }
+            }
+          CONF
+          cat > main.cpp << 'MAIN'
+          #include <iostream>
+          #include <argparse/argparse.hpp>
+          int main() {
+             auto p = argparse::ArgumentParser("test");
+             auto s = p.get_program_name();
+             std::cout << s << "test\n";
+          }
+          MAIN
+          cat > CMakeLists.txt << 'CMakeLists'
+          cmake_minimum_required(VERSION 3.15)
+          project(test LANGUAGES CXX)
+          add_executable(test main.cpp)
+          find_package(nlohmann_json REQUIRED)
+          find_package(argparse REQUIRED)
+          target_link_libraries(test PRIVATE argparse::argparse nlohmann_json::nlohmann_json)
+          CMakeLists
+
+          cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake -S . -B build
+          cmake --build build
+          rm proxy.conf
+        env:
+            VCPKG_ROOT: ${{ github.workspace }}/export
+            X_VCPKG_ASSET_SOURCES: "clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY=127.0.0.1:8443 -DTLS_VERIFY=OFF -DPROXY_USERNAME=user -DPROXY_PASSWORD=123 -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"

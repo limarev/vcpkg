@@ -1,0 +1,92 @@
+name: Prepare tag & rebase custom
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag name that exists in microsoft/vcpkg (e.g., 2025.09.17)
+        default: '2025.09.17'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM: microsoft/vcpkg
+      FORK_OWNER: limarev
+      FORK_REPO: vcpkg
+      DEFAULT_BRANCH: master
+      CUSTOM_BRANCH: custom
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Early exit if tag already exists on fork
+        id: tagcheck
+        run: |
+          if gh release view ${{ inputs.tag }} >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag already present — finishing successfully
+        if: ${{ steps.tagcheck.outputs.exists == 'true' }}
+        run: |
+          echo "Tag ${{ inputs.tag }} already exists in {{ github.repository }}. Exiting with success."
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Early exit if tag does not exist on upstream
+        if: ${{ steps.tagcheck.outputs.exists == 'false' }}
+        run: |
+          if gh release view ${{ inputs.tag }} -R github.com/microsoft/vcpkg >/dev/null 2>&1; then
+            echo "Success"
+          else
+            echo "Release ${{ inputs.tag }} not found on $UPSTREAM"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Sync fork master with upstream master (FF-only)
+        if: ${{ steps.tagcheck.outputs.exists == 'false' }}
+        run: gh repo sync limarev/vcpkg -b master -s microsoft/vcpkg
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Locate upstream tag commit
+        if: ${{ steps.tagcheck.outputs.exists == 'false' }}
+        id: resolve
+        run: |
+          commit=$(gh api /repos/$UPSTREAM/commits/${{ inputs.tag }} -q .sha)
+          if [ $? -ne 0 ]; then
+           echo "No commit found for tag \`${{ inputs.tag }}\` in $UPSTREAM."
+           exit 1
+          fi
+          
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Rebase custom onto tag commit
+        if: ${{ steps.tagcheck.outputs.exists == 'false' }}
+        run: |
+          gh pr create -B custom --head ${{ steps.resolve.outputs.commit }} -t ${{ steps.resolve.outputs.commit }} -b ${{ steps.resolve.outputs.commit }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+
+    #   - name: Tag HEAD of custom and push
+    #     if: ${{ steps.tagcheck.outputs.exists == 'false' }}
+    #     run: |
+    #       git tag ${{ inputs.tag }}
+    #       git push -f
+    #       git push --tags
+
