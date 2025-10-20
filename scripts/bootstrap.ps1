@@ -52,7 +52,7 @@ $versionDate = $Config.VCPKG_TOOL_RELEASE_TAG
 if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_IDENTIFIER -match "ARMv[8,9] \(64-bit\)") {
     & "$scriptsDir/tls12-download-arm64.exe" github.com "/microsoft/vcpkg-tool/releases/download/$versionDate/vcpkg-arm64.exe" "$vcpkgRootDir\vcpkg.exe"
 } else {
-    & "$scriptsDir/tls12-download.exe" github.com "/microsoft/vcpkg-tool/releases/download/$versionDate/vcpkg.exe" "$vcpkgRootDir\vcpkg.exe"
+    Invoke-WebRequest -Uri "$env:VCPKG_PROXY/repo/extras/github_api/microsoft/vcpkg-tool/releases/download/$versionDate/vcpkg.exe" -Headers @{ Authorization = "Basic " + [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes("$env:VCPKG_PROXY_USERNAME:$env:VCPKG_PROXY_TOKEN")) } -OutFile "$vcpkgRootDir\vcpkg.exe"
 }
 
 Write-Host ""

@@ -115,7 +115,20 @@ If you do not know the SHA512, add it as 'SHA512 0' and retry.")
     endif()
 
     vcpkg_list(SET params "x-download" "${arg_FILENAME}")
+
+    message(CHECK_START "Check if VCPKG_PROXY environment variable is set")
+    if (DEFINED ENV{VCPKG_PROXY})
+        message(CHECK_PASS "set")
+    else()
+        message(CHECK_FAIL "not set")
+        message(WARNING "VCPKG_PROXY environment variable is not set, try `export VCPKG_PROXY=<proxy>`")
+    endif()
+
     foreach(url IN LISTS arg_URLS)
+        string(REPLACE "https://github.com" "$ENV{VCPKG_PROXY}/repo/extras/github_api" url ${url})
+        string(REPLACE "https://sourceforge.net" "$ENV{VCPKG_PROXY}/repo/sourceforge" url ${url})
+        string(REPLACE "https://download.microsoft.com" "$ENV{VCPKG_PROXY}/repo/extras/microsoft" url ${url})
+        string(REPLACE "https://sourceware.org" "$ENV{VCPKG_PROXY}/repo/conan_sourceware" url ${url})
         vcpkg_list(APPEND params "--url=${url}")
     endforeach()
 

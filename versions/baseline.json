@@ -6336,6 +6336,10 @@
       "baseline": "2023-03-03",
       "port-version": 0
     },
+    "mip-protection-sdk": {
+      "baseline": "1.16.159",
+      "port-version": 0
+    },
     "mlpack": {
       "baseline": "4.6.2",
       "port-version": 0
