@@ -1,0 +1,14 @@
+{
+  "name": "mip-protection-sdk",
+  "version": "1.16.159",
+  "description": "Microsoft Information Protection Software Development Kit",
+  "homepage": "https://learn.microsoft.com/en-us/information-protection/develop/version-release-history",
+  "documentation": "https://learn.microsoft.com/en-us/information-protection/develop/overview",
+  "supports": "linux | windows | osx | ios | android",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
