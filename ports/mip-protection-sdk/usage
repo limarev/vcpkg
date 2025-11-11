@@ -1,0 +1,17 @@
+mip-protection-sdk provides CMake targets:
+
+find_package(mip-protection-sdk REQUIRED)
+target_link_libraries(main PRIVATE mip::protection_sdk) # mip::core is propagated implicitly
+
+# runtime requirements
+install(IMPORTED_RUNTIME_ARTIFACTS
+        mip::protection_sdk
+        mip::core
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib)
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+        install(IMPORTED_RUNTIME_ARTIFACTS
+                mip::ClientTelemetry
+                RUNTIME DESTINATION lib)
+endif()
