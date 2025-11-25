@@ -1,0 +1,28 @@
+name: Attach Canonical Source Archives
+
+on:
+  workflow_dispatch:
+  release:
+    types: [created, published, released]
+
+permissions:
+  contents: write   # needed to upload assets
+
+jobs:
+  attach-canonical-archives:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # gh CLI auth
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # for other actions
+    steps:
+      - name: Download GitHub’s canonical source ZIP for the tag
+        run: |
+          gh release download ${{ github.ref_name }} -A zip -O ${{ github.ref_name }}.zip
+          gh release download ${{ github.ref_name }} -A tar.gz -O ${{ github.ref_name }}.tar.gz
+
+      - name: Upload as release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.zip
+            *.tar.gz

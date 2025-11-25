@@ -1,0 +1,86 @@
+name: Test proxy
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  test_proxy:
+    uses: ./.github/workflows/test_proxy.yml
+  release-ubuntu:
+    needs: test_proxy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          UPSTREAM_BODY="$(gh release view ${{ github.ref_name }} -R microsoft/vcpkg --json body -q .body 2>/dev/null)"
+          if [ $? -ne 0 ]; then
+           echo "No upstream GitHub Release body found for tag \`${{ github.ref_name }}\` in $microsoft/vcpkg."
+           exit 1
+          fi
+          
+          echo "$UPSTREAM_BODY" >> release_notes.md
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # If the release exists, edit; otherwise create.
+          if gh release view ${{ github.ref_name }} >/dev/null 2>&1; then
+            gh release edit ${{ github.ref_name }} --notes-file release_notes.md
+          else
+            gh release create ${{ github.ref_name }} --title ${{ github.ref_name }} --notes-file release_notes.md
+          fi
+          rm release_notes.md
+
+      - name: Create vcpkg filesystem registry
+        run: |
+            cmake -DSOURCE_REGISTRY_DIR=. -DBASELINE=${{ github.ref_name }} -DDST_DIR=${{ github.ref_name }} -P filesystem_registry.cmake
+
+      - name: Create release assets
+        run: |
+            cmake -E tar c vcpkg-${{ github.ref_name }}-ubuntu-latest.zip --format=zip ${{ github.ref_name }}
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+            gh release upload ${{ github.ref_name }} vcpkg-${{ github.ref_name }}-ubuntu-latest.zip
+
+  release-others:
+    needs: release-ubuntu
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create vcpkg filesystem registry
+        run: |
+            cmake -DSOURCE_REGISTRY_DIR:PATH="${{ github.workspace }}" -DBASELINE:STRING="${{ github.ref_name }}" -DDST_DIR:STRING="${{ github.ref_name }}" -P filesystem_registry.cmake
+
+      - name: Create release assets
+        run: |
+            cmake -E tar c "vcpkg-${{ github.ref_name }}-${{ matrix.os }}.zip" --format=zip "${{ github.ref_name }}"
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+            gh release upload "${{ github.ref_name }}" "vcpkg-${{ github.ref_name }}-${{ matrix.os }}.zip"
