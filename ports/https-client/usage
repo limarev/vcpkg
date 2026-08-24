@@ -1,0 +1,4 @@
+https-client provides the CMake target:
+
+    find_package(https-client CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE https-client::https-client)

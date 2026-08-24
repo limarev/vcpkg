@@ -1,0 +1,38 @@
+[
+  {
+    "origin": "https://github.com/",
+    "path": "repo/extras/github_api/"
+  },
+  {
+    "origin": "https://sourceforge.net/",
+    "path": "repo/sourceforge/"
+  },
+  {
+    "origin": "https://download.microsoft.com/download/",
+    "path": "repo/extras/microsoft/"
+  },
+  {
+    "origin": "https://www.nuget.org/",
+    "path": "repo/nuget_org/"
+  },
+  {
+    "origin": "https://dl.google.com/",
+    "path": "repo/google_dl/"
+  },
+  {
+    "origin": "https://storage.googleapis.com/",
+    "path": "repo/go/google_storage/"
+  },
+  {
+    "origin": "https://sourceware.org/",
+    "path": "repo/sourceware/"
+  },
+  {
+    "origin": "https://ftp.gnu.org/",
+    "path": "repo/extras/"
+  },
+  {
+    "origin": "https://www.kernel.org/",
+    "path": "repo/kernel/"
+  }
+]
