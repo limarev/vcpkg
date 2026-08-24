@@ -1,7 +1,0 @@
-{
-  "name": "argparse-test",
-  "version-string": "1.0.0",
-  "dependencies": [
-    "argparse"
-  ]
-}

@@ -5,14 +5,19 @@ on:
     inputs:
       tag:
         description: Upstream vcpkg tag
-        required: true
+        required: false
+        default: ""
         type: string
 
 permissions:
   contents: write
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -31,18 +36,14 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Verify requested upstream
-        run: |
-          test '${{ inputs.tag }}' = "$(jq -r .tag vcpkg-upstream.json)"
-          expected="$(jq -r .commit vcpkg-upstream.json)"
-          git init upstream
-          git -C upstream remote add origin https://github.com/microsoft/vcpkg.git
-          git -C upstream fetch --depth=1 origin "refs/tags/${{ inputs.tag }}:refs/tags/${{ inputs.tag }}"
-          actual="$(git -C upstream rev-parse '${{ inputs.tag }}^{}')"
-          test "$actual" = "$expected"
-          git -C upstream checkout --detach "$actual"
+      - name: Check out pinned upstream vcpkg
+        uses: actions/checkout@v6
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ inputs.tag || needs.test.outputs.upstream_tag }}
+          path: upstream
 
       - name: Bootstrap vcpkg on Unix
         if: runner.os != 'Windows'
@@ -57,33 +58,30 @@ jobs:
           cmake \
             -DUPSTREAM_DIR="$PWD/upstream" \
             -DOVERLAY_PORTS_DIR="$PWD/ports" \
-            -DDST_DIR="$PWD/build/vcpkg-${{ inputs.tag }}-${{ matrix.asset }}" \
-            -DBASELINE='${{ inputs.tag }}' \
+            -DDST_DIR="$PWD/build/vcpkg-${{ inputs.tag || needs.test.outputs.upstream_tag }}-${{ matrix.asset }}" \
+            -DBASELINE='${{ inputs.tag || needs.test.outputs.upstream_tag }}' \
             -DVCPKG_EXECUTABLE="$PWD/upstream/${{ matrix.executable }}" \
             -P filesystem_registry.cmake
 
-      - name: Create archive and checksum
+      - name: Create archive
         run: |
-          archive="vcpkg-${{ inputs.tag }}-${{ matrix.asset }}.zip"
-          cmake -E chdir build cmake -E tar cf "../$archive" --format=zip "vcpkg-${{ inputs.tag }}-${{ matrix.asset }}"
-          cmake -E sha256sum "$archive" > "$archive.sha256"
+          archive="vcpkg-${{ inputs.tag || needs.test.outputs.upstream_tag }}-${{ matrix.asset }}.zip"
+          cmake -E chdir build cmake -E tar cf "../$archive" --format=zip "vcpkg-${{ inputs.tag || needs.test.outputs.upstream_tag }}-${{ matrix.asset }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vcpkg-${{ matrix.asset }}
-          path: |
-            vcpkg-${{ inputs.tag }}-${{ matrix.asset }}.zip
-            vcpkg-${{ inputs.tag }}-${{ matrix.asset }}.zip.sha256
+          path: vcpkg-${{ inputs.tag || needs.test.outputs.upstream_tag }}-${{ matrix.asset }}.zip
 
   publish:
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
@@ -92,7 +90,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag='${{ inputs.tag }}'
+          tag='${{ inputs.tag || needs.test.outputs.upstream_tag }}'
           git tag -f "$tag" "$GITHUB_SHA"
           git push --force origin "refs/tags/$tag"
           if gh release view "$tag" >/dev/null 2>&1; then

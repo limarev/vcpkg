@@ -50,25 +50,57 @@ foreach(port_name IN LISTS overlay_entries)
 
     set(manifest "${OVERLAY_PORTS_DIR}/${port_name}/vcpkg.json")
     set(portfile "${OVERLAY_PORTS_DIR}/${port_name}/portfile.cmake")
-    if(NOT EXISTS "${manifest}" OR NOT EXISTS "${portfile}")
-        message(FATAL_ERROR "Overlay port ${port_name} must contain vcpkg.json and portfile.cmake")
-    endif()
+    if(EXISTS "${manifest}" AND EXISTS "${portfile}")
+        file(READ "${manifest}" manifest_json)
+        string(JSON declared_name ERROR_VARIABLE manifest_error GET "${manifest_json}" name)
+        if(manifest_error OR NOT declared_name STREQUAL port_name)
+            message(FATAL_ERROR "Overlay directory ${port_name} must match its manifest name")
+        endif()
 
-    file(READ "${manifest}" manifest_json)
-    string(JSON declared_name ERROR_VARIABLE manifest_error GET "${manifest_json}" name)
-    if(manifest_error OR NOT declared_name STREQUAL port_name)
-        message(FATAL_ERROR "Overlay directory ${port_name} must match its manifest name")
-    endif()
+        file(REMOVE_RECURSE "${DST_DIR}/ports/${port_name}")
+        file(COPY "${OVERLAY_PORTS_DIR}/${port_name}" DESTINATION "${DST_DIR}/ports")
+    elseif(EXISTS "${manifest}" OR EXISTS "${portfile}")
+        message(FATAL_ERROR "Replacement port ${port_name} must contain both vcpkg.json and portfile.cmake")
+    else()
+        if(NOT IS_DIRECTORY "${DST_DIR}/ports/${port_name}")
+            message(FATAL_ERROR "Cannot patch missing upstream port ${port_name}")
+        endif()
 
-    file(REMOVE_RECURSE "${DST_DIR}/ports/${port_name}")
-    file(COPY "${OVERLAY_PORTS_DIR}/${port_name}" DESTINATION "${DST_DIR}/ports")
+        file(GLOB patch_entries RELATIVE "${OVERLAY_PORTS_DIR}/${port_name}" "${OVERLAY_PORTS_DIR}/${port_name}/*")
+        list(SORT patch_entries)
+        if(NOT patch_entries)
+            message(FATAL_ERROR "Patch-only port ${port_name} contains no patches")
+        endif()
+
+        find_program(GIT_EXECUTABLE git)
+        if(NOT GIT_EXECUTABLE)
+            message(FATAL_ERROR "git is required to apply port patches")
+        endif()
+
+        foreach(patch_name IN LISTS patch_entries)
+            set(patch "${OVERLAY_PORTS_DIR}/${port_name}/${patch_name}")
+            if(IS_DIRECTORY "${patch}" OR NOT patch_name MATCHES "\\.patch$")
+                message(FATAL_ERROR "Patch-only port ${port_name} may contain only .patch files")
+            endif()
+
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" apply --no-index --whitespace=nowarn "${patch}"
+                WORKING_DIRECTORY "${DST_DIR}/ports/${port_name}"
+                RESULT_VARIABLE patch_result
+                OUTPUT_VARIABLE patch_output
+                ERROR_VARIABLE patch_error
+            )
+            if(NOT patch_result EQUAL 0)
+                message(FATAL_ERROR "Failed to apply ${port_name}/${patch_name}:\n${patch_output}${patch_error}")
+            endif()
+        endforeach()
+    endif()
 endforeach()
 
-file(MAKE_DIRECTORY "${DST_DIR}/scripts/custom-asset-proxy")
 file(COPY
     "${CMAKE_CURRENT_LIST_DIR}/download.cmake"
-    "${CMAKE_CURRENT_LIST_DIR}/routes.json"
-    DESTINATION "${DST_DIR}/scripts/custom-asset-proxy"
+    "${CMAKE_CURRENT_LIST_DIR}/routes.txt"
+    DESTINATION "${DST_DIR}/scripts"
 )
 
 set(versions_dir "${DST_DIR}/versions")

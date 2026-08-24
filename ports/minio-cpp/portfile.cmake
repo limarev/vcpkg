@@ -1,9 +1,12 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
-    REPO alex-gv/minio-cpp
-    REF "v${VERSION}"
-    SHA512 106baca35027a7de281ce6d6a9ac59d82d12a23df858d24a5c854e9e250495aa2324d4dfb59997585bbbcfb28b619ac90b8a29909de3eb710bf5e4c0c1dfb1f7
+    REPO minio/minio-cpp
+    REF bc08d87a8a0001fd32f998e2af33ca1961454dc8
+    SHA512 82fb94e3042a73abe610fa3413b64af6f322a897f5060f3c25e48b5d68846ec9283a86785e1e03161dd3b80c2e633790195e5bc7e983f37061b8932568ff647c
     HEAD_REF main
+    PATCHES
+        # Backport of alex-gv/minio-cpp@9c827a2, with a typed sleep duration.
+        fix-select-without-active-sockets.patch
 )
 
 vcpkg_cmake_configure(

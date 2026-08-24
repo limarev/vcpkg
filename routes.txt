@@ -1,0 +1,9 @@
+https://github.com repo/extras/github_api
+https://sourceforge.net repo/sourceforge
+https://download.microsoft.com/download repo/extras/microsoft
+https://www.nuget.org repo/nuget_org
+https://dl.google.com repo/google_dl
+https://storage.googleapis.com repo/go/google_storage
+https://sourceware.org repo/sourceware
+https://ftp.gnu.org repo/extras
+https://www.kernel.org repo/kernel
