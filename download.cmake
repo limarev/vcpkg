@@ -1,5 +1,5 @@
 # Usage with vcpkg x-script:
-# export X_VCPKG_ASSET_SOURCES="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY=proxy.example.com -DPROXY_USERNAME=user -DPROXY_PASSWORD=secret -DPROXY_ROUTES=$VCPKG_ROOT/scripts/routes.txt -DTLS_VERIFY=ON -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"
+# export X_VCPKG_ASSET_SOURCES="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY_URL=https://proxy.example.com -DPROXY_USERNAME=user -DPROXY_PASSWORD=secret -DPROXY_ROUTES=$VCPKG_ROOT/scripts/routes.txt -DTLS_VERIFY=ON -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"
 
 cmake_minimum_required(VERSION 3.19)
 
@@ -8,7 +8,7 @@ function(require_args)
         URL
         SHA512
         DST_FILE
-        PROXY
+        PROXY_URL
         PROXY_USERNAME
         PROXY_PASSWORD
         PROXY_ROUTES
@@ -38,7 +38,7 @@ require_args(
     URL            url
     SHA512         expected_sha512
     DST_FILE       dst_file
-    PROXY          proxy
+    PROXY_URL      proxy_url
     PROXY_USERNAME proxy_username
     PROXY_PASSWORD proxy_password
     PROXY_ROUTES   proxy_routes
@@ -66,7 +66,7 @@ foreach(route IN LISTS routes)
     list(GET fields 1 proxy_path)
 
     if(url MATCHES "${origin}")
-        string(REPLACE "${origin}" "https://${proxy}/${proxy_path}" proxy_download_url "${url}")
+        string(REPLACE "${origin}" "${proxy_url}/${proxy_path}" proxy_download_url "${url}")
         break()
     endif()
 endforeach()

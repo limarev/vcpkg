@@ -88,7 +88,7 @@ for _ in {1..20}; do
 done
 docker exec "$container_name" nginx -t
 
-asset_sources="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY=127.0.0.1:8443 -DPROXY_USERNAME=user -DPROXY_PASSWORD=secret -DTLS_VERIFY=OFF -DPROXY_ROUTES=$routes -P $downloader;x-block-origin"
+asset_sources="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY_URL=https://127.0.0.1:8443 -DPROXY_USERNAME=user -DPROXY_PASSWORD=secret -DTLS_VERIFY=OFF -DPROXY_ROUTES=$routes -P $downloader;x-block-origin"
 export X_VCPKG_ASSET_SOURCES="$asset_sources"
 
 # Dynamic-only ports enforce their required linkage while their portfiles run.

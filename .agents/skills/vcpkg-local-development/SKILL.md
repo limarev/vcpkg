@@ -35,7 +35,7 @@ If `tests/<port>/` exists, configure and build it with the pinned vcpkg toolchai
 
 ## Test the proxy
 
-`tests/test-ports-linux.sh <upstream>` starts a local Nginx proxy and builds every customized port with the proxy as its only asset source. Supply `PROXY`, `PROXY_USERNAME`, `PROXY_PASSWORD`, `TLS_VERIFY`, and `PROXY_ROUTES` through the downloader's `-D` arguments. Never place real credentials in generated configuration committed to Git or logs.
+`tests/test-ports-linux.sh <upstream>` starts a local Nginx proxy and builds every customized port with the proxy as its only asset source. Supply `PROXY_URL`, `PROXY_USERNAME`, `PROXY_PASSWORD`, `TLS_VERIFY`, and `PROXY_ROUTES` through the downloader's `-D` arguments. Never place real credentials in generated configuration committed to Git or logs.
 
 Build every customized port with a fresh downloads directory and confirm `x-block-origin` is active, so successful builds demonstrate that their sources were downloaded through the proxy. Leave archive checksum validation to vcpkg.
 

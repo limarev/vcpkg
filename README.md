@@ -37,10 +37,10 @@ GitHub Actions delegates validation to the executable scripts under [`tests/`](t
 The downloader is configured as a vcpkg `x-script` asset source. Pass the proxy configuration and route file to the script as CMake arguments:
 
 ```sh
-export X_VCPKG_ASSET_SOURCES="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY=proxy.example.com -DPROXY_USERNAME=user -DPROXY_PASSWORD=secret -DTLS_VERIFY=ON -DPROXY_ROUTES=$VCPKG_ROOT/scripts/routes.txt -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"
+export X_VCPKG_ASSET_SOURCES="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY_URL=https://proxy.example.com -DPROXY_USERNAME=user -DPROXY_PASSWORD=secret -DTLS_VERIFY=ON -DPROXY_ROUTES=$VCPKG_ROOT/scripts/routes.txt -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"
 ```
 
-`PROXY` is the proxy hostname without a scheme. `PROXY_ROUTES` accepts the path to a route file; each non-empty line contains an HTTPS origin and its proxy path separated by one space. The distribution's routes are defined in [`routes.txt`](routes.txt).
+`PROXY_URL` is the proxy base URL. `PROXY_ROUTES` accepts the path to a route file; each non-empty line contains an HTTPS origin and its proxy path separated by one space. The distribution's routes are defined in [`routes.txt`](routes.txt).
 
 ## Releases
 

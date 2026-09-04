@@ -99,11 +99,66 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag='${{ inputs.tag || needs.test.outputs.upstream_tag }}'
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes_file" <<'EOF'
+          This is a self-contained, platform-specific vcpkg distribution. It combines the pinned upstream vcpkg release with this repository's replacement ports, port patches, download-proxy support, and an already-bootstrapped vcpkg executable. It is a ready-to-use vcpkg root, not a source patch or an overlay that must be applied to another checkout.
+
+          ## How to use it
+
+          1. Download the `linux`, `macos`, or `windows` archive for the machine that will run vcpkg.
+          2. Extract the archive to a permanent location.
+          3. On Bash, add the following environment configuration to `~/.bashrc`. Replace the angle-bracketed values with the extracted directory and your proxy settings:
+
+             ```sh
+             export VCPKG_FORCE_SYSTEM_BINARIES=1
+             export VCPKG_DISABLE_METRICS=1
+             export VCPKG_ROOT=<absolute-path-to-extracted-distribution>
+             export X_VCPKG_ASSET_SOURCES="clear;x-script,cmake -DURL={url} -DSHA512={sha512} -DDST_FILE={dst} -DPROXY_URL=<proxy-url> -DPROXY_USERNAME=<proxy-username> -DPROXY_PASSWORD=<proxy-password> -DTLS_VERIFY=ON -DPROXY_ROUTES=$VCPKG_ROOT/scripts/routes.txt -P $VCPKG_ROOT/scripts/download.cmake;x-block-origin"
+
+             export PATH="$VCPKG_ROOT:$PATH"
+             ```
+
+          4. Reload the shell configuration and use `vcpkg` normally:
+
+             ```sh
+             source ~/.bashrc
+             vcpkg install <port>
+             ```
+
+          For a CMake project, point CMake at the bundled toolchain file:
+
+          ```sh
+          cmake -S . -B build \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          ```
+
+          The distribution uses its bundled filesystem registry by default, so the customized ports are available without a separate overlay. `X_VCPKG_ASSET_SOURCES` sends matching source downloads through the included authenticated-proxy helper and blocks direct origin downloads.
+
+          ## Proxy routes
+
+          Proxy routes are runtime configuration in `$VCPKG_ROOT/scripts/routes.txt`. The downloader reads this file when it runs, so adding or changing routes does not require recompiling vcpkg or rebuilding the distribution.
+
+          The bundled `routes.txt` contains:
+
+          ```text
+          EOF
+          cat routes.txt >> "$notes_file"
+          cat >> "$notes_file" <<'EOF'
+          ```
+
+          Each line contains an HTTPS source origin and its proxy path, separated by one space. For example, add a new route for `https://downloads.example.com` with:
+
+          ```sh
+          printf '%s\n' 'https://downloads.example.com repo/example' >> "$VCPKG_ROOT/scripts/routes.txt"
+          ```
+          EOF
+          printf '\nBuilt from `microsoft/vcpkg` `%s`. Customization commit: `%s`.\n' \
+            "$tag" "$GITHUB_SHA" >> "$notes_file"
           git tag -f "$tag" "$GITHUB_SHA"
           git push --force origin "refs/tags/$tag"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release edit "$tag" --title "$tag" --notes "Customized distribution built from microsoft/vcpkg $tag. Customization commit: $GITHUB_SHA"
+            gh release edit "$tag" --title "$tag" --notes-file "$notes_file"
           else
-            gh release create "$tag" --title "$tag" --notes "Customized distribution built from microsoft/vcpkg $tag. Customization commit: $GITHUB_SHA"
+            gh release create "$tag" --title "$tag" --notes-file "$notes_file"
           fi
           gh release upload "$tag" artifacts/* --clobber
