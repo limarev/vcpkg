@@ -19,6 +19,7 @@ test -d "$overlay"
     argparse \
     boost-cmake \
     https-client \
+    libpq \
     --triplet=x64-linux \
     --overlay-ports="$overlay" \
     --clean-after-build
