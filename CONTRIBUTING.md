@@ -35,7 +35,7 @@ Edit `routes.txt`; do not duplicate route definitions in CMake or workflow files
 
 ## Update upstream vcpkg
 
-The `monitor-upstream.yml` workflow checks the latest stable `microsoft/vcpkg` GitHub release daily and opens or updates a pull request changing `vcpkg-upstream-tag.txt`. It also dispatches the test workflow for the bot branch. The monitor can be run manually from GitHub Actions when an immediate check is needed.
+The `monitor-upstream.yml` workflow checks the latest stable `microsoft/vcpkg` GitHub release on the first day of every month at 06:23 UTC and opens or updates a pull request changing `vcpkg-upstream-tag.txt`. It also dispatches the test workflow for the bot branch. The monitor can be run manually from GitHub Actions when an immediate check is needed.
 
 The repository setting **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests** must be enabled so the built-in GitHub Actions bot can create the update pull request.
 
