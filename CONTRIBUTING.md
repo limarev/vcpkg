@@ -35,7 +35,11 @@ Edit `routes.txt`; do not duplicate route definitions in CMake or workflow files
 
 ## Update upstream vcpkg
 
-Update `vcpkg-upstream-tag.txt` in a pull request. Let `actions/checkout` resolve and validate the configured ref. Compare each replacement port with its new upstream version and refresh conflicting overlays before merging.
+The `monitor-upstream.yml` workflow checks the latest stable `microsoft/vcpkg` GitHub release daily and opens or updates a pull request changing `vcpkg-upstream-tag.txt`. It also dispatches the test workflow for the bot branch. The monitor can be run manually from GitHub Actions when an immediate check is needed.
+
+The repository setting **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests** must be enabled so the built-in GitHub Actions bot can create the update pull request.
+
+Before merging the bot pull request, compare each replacement port with its new upstream version and refresh conflicting overlays. `actions/checkout` resolves and validates the configured ref. A push to `main` that changes `vcpkg-upstream-tag.txt` automatically runs the release workflow.
 
 ## Publish
 

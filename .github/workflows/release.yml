@@ -8,6 +8,14 @@ on:
         required: false
         default: ""
         type: string
+  push:
+    branches: [main]
+    paths:
+      - vcpkg-upstream-tag.txt
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write

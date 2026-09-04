@@ -43,3 +43,5 @@ export X_VCPKG_ASSET_SOURCES="clear;x-script,cmake -DURL={url} -DSHA512={sha512}
 ## Releases
 
 The release workflow builds one archive per supported runner and uses the same tag name as the pinned upstream release. Releases are intentionally mutable: rerunning a release replaces all archives and moves the distribution tag to the customization commit used for that rebuild.
+
+The upstream monitor runs daily and can also be started manually. When `microsoft/vcpkg` publishes a newer stable GitHub release, the bot opens or updates a pull request changing `vcpkg-upstream-tag.txt` and dispatches the test workflow for the bot branch. Merging that pull request automatically runs the release workflow and publishes the Linux, macOS, and Windows custom bundles. Manual release runs remain available for rebuilding an existing custom release.

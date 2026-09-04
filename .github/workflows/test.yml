@@ -5,6 +5,7 @@ on:
     outputs:
       upstream_tag:
         value: ${{ jobs.configuration.outputs.upstream_tag }}
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
