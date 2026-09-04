@@ -45,15 +45,20 @@ require_args(
     TLS_VERIFY     tls_verify
 )
 
+message(CHECK_START "Loading proxy routes from ${proxy_routes}")
 if(NOT EXISTS "${proxy_routes}")
+    message(CHECK_FAIL "file does not exist")
     message(FATAL_ERROR "Proxy route file does not exist: ${proxy_routes}")
 endif()
 
 file(STRINGS "${proxy_routes}" routes)
 if(NOT routes)
+    message(CHECK_FAIL "file is empty")
     message(FATAL_ERROR "Proxy route file is empty: ${proxy_routes}")
 endif()
+message(CHECK_PASS "loaded")
 
+message(CHECK_START "Selecting proxy route for ${url}")
 set(proxy_download_url "")
 foreach(route IN LISTS routes)
     string(REPLACE " " ";" fields "${route}")
@@ -67,9 +72,12 @@ foreach(route IN LISTS routes)
 endforeach()
 
 if(proxy_download_url STREQUAL "")
+    message(CHECK_FAIL "not routed")
     message(FATAL_ERROR "URL is not routed through the configured proxy: ${url}")
 endif()
+message(CHECK_PASS "${origin} -> ${proxy_download_url}")
 
+message(CHECK_START "Downloading ${proxy_download_url} to ${dst_file} (TLS_VERIFY=${tls_verify})")
 file(DOWNLOAD
     "${proxy_download_url}"
     "${dst_file}"
@@ -83,14 +91,20 @@ file(DOWNLOAD
 list(GET download_status 0 status_code)
 list(GET download_status 1 status_message)
 if(NOT status_code EQUAL 0)
+    message(CHECK_FAIL "${status_code} (${status_message})")
     file(REMOVE "${dst_file}")
     message(VERBOSE "Downloader log:\n${download_log}")
     message(FATAL_ERROR "Proxy download failed (${status_code}): ${status_message}")
 endif()
 
-file(SHA512 "${dst_file}" actual_sha512)
+file(SIZE "${dst_file}" downloaded_size)
+message(CHECK_PASS "${downloaded_size} bytes")
+
 string(TOLOWER "${expected_sha512}" expected_sha512)
+message(CHECK_START "Verifying SHA512 ${expected_sha512}")
+file(SHA512 "${dst_file}" actual_sha512)
 if(NOT actual_sha512 STREQUAL expected_sha512)
+    message(CHECK_FAIL "got ${actual_sha512}")
     file(REMOVE "${dst_file}")
     message(FATAL_ERROR
         "Proxy download SHA512 mismatch for ${url}\n"
@@ -99,4 +113,4 @@ if(NOT actual_sha512 STREQUAL expected_sha512)
     )
 endif()
 
-message(STATUS "Downloaded ${url} through the configured proxy")
+message(CHECK_PASS "matched")

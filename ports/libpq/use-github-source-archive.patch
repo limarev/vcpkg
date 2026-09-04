@@ -1,15 +1,15 @@
 diff --git a/portfile.cmake b/portfile.cmake
 --- a/portfile.cmake
 +++ b/portfile.cmake
-@@ -1,6 +1,9 @@
+@@ -1,6 +1,7 @@
 +string(REPLACE "." "_" POSTGRES_TAG "REL_${VERSION}")
 +
  vcpkg_download_distfile(ARCHIVE
 -    URLS "https://ftp.postgresql.org/pub/source/v${VERSION}/postgresql-${VERSION}.tar.bz2"
 +    URLS "https://github.com/postgres/postgres/archive/refs/tags/${POSTGRES_TAG}.zip"
-+         "https://ftp.postgresql.org/pub/source/v${VERSION}/postgresql-${VERSION}.tar.bz2"
-          "https://www.mirrorservice.org/sites/ftp.postgresql.org/source/v${VERSION}/postgresql-${VERSION}.tar.bz2"
-     FILENAME "postgresql-${VERSION}.tar.bz2"
+-         "https://www.mirrorservice.org/sites/ftp.postgresql.org/source/v${VERSION}/postgresql-${VERSION}.tar.bz2"
+-    FILENAME "postgresql-${VERSION}.tar.bz2"
++    FILENAME "postgresql-${VERSION}.zip"
 -    SHA512 1a7606b5b2460a4fc817d491e1e03262df17ece6869fa3d2b80647baffcfb790fbcfa019c3b10fab9f9a14218651b6a358864e40a5d8c5ddc796db2d6e5b469c
-+    SKIP_SHA512
++    SHA512 98766bebd91d1353929690f88904ff8dadc053598bd806b760306964a3854a0f4b74adf8254af49fde998de208ad714deebee6d9d4b566fa3f9ee761d8b212d8
  )

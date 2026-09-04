@@ -23,8 +23,7 @@ It intentionally contains no upstream vcpkg history. The supported upstream tag 
 Bootstrap the pinned upstream checkout, then let overlay ports replace or extend its registry:
 
 ```sh
-tests/test-bundle.sh /path/to/vcpkg
-/path/to/vcpkg/vcpkg install argparse --overlay-ports="$PWD/build/test-bundle/ports"
+tests/test-ports-linux.sh /path/to/vcpkg
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) or invoke the repository's `vcpkg-local-development` skill for the complete workflow.

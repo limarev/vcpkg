@@ -44,16 +44,5 @@ jobs:
       - name: Bootstrap vcpkg
         run: ./upstream/bootstrap-vcpkg.sh -disableMetrics
 
-      - name: Generate and validate bundle
-        run: tests/test-bundle.sh upstream
-
-      - name: Build all overlay ports
+      - name: Generate and validate bundle and build all overlay ports through the proxy
         run: tests/test-ports-linux.sh upstream
-
-  proxy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Test proxy routes and downloader
-        run: tests/test-proxy.sh

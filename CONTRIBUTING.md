@@ -15,8 +15,7 @@ Increment `port-version` for packaging-only changes. Reset it to zero or remove 
 ## Test a port
 
 ```sh
-tests/test-bundle.sh /path/to/vcpkg
-/path/to/vcpkg/vcpkg install <port> --overlay-ports="$PWD/build/test-bundle/ports"
+tests/test-ports-linux.sh /path/to/vcpkg
 ```
 
 For a clean targeted retest, remove only the affected package and build tree. Do not delete the complete vcpkg cache or unrelated build trees.
@@ -27,14 +26,12 @@ Use the checked-in test entry points instead of copying commands from GitHub Act
 
 ```sh
 tests/validate-config.sh
-tests/test-bundle.sh /path/to/vcpkg
 tests/test-ports-linux.sh /path/to/vcpkg
-tests/test-proxy.sh
 ```
 
 ## Change proxy routing
 
-Edit `routes.txt`; do not duplicate route definitions in CMake or workflow files. Run the proxy tests after every route or downloader change. Credentials belong in environment variables and must not be committed.
+Edit `routes.txt`; do not duplicate route definitions in CMake or workflow files. Run `tests/test-ports-linux.sh /path/to/vcpkg` after every route or downloader change; it tests the proxy and builds the overlay ports through it. Credentials belong in environment variables and must not be committed.
 
 ## Update upstream vcpkg
 

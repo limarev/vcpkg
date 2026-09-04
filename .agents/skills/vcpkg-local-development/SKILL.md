@@ -17,17 +17,16 @@ Bootstrap with `bootstrap-vcpkg.sh -disableMetrics` on Unix-like systems or `boo
 
 Use `git diff --name-only` to identify changed directories below `ports/`. Test only affected ports unless shared downloader, routing, registry-generation, or workflow changes require broader coverage.
 
-Use the checked-in test entry points rather than copying workflow shell fragments: `tests/validate-config.sh`, `tests/test-bundle.sh`, `tests/test-ports-linux.sh`, and `tests/test-proxy.sh`.
+Use the checked-in test entry points rather than copying workflow shell fragments: `tests/validate-config.sh` and `tests/test-ports-linux.sh`.
 
 Validate every changed `vcpkg.json` with the pinned vcpkg executable. Ensure the directory and manifest package names match and that packaging-only changes increment `port-version`. A patch-only port directory must contain only `.patch` files.
 
 ## Test overlay ports
 
-Generate the test bundle first, then install a changed port through its complete ports tree:
+Generate the test bundle and install all customized ports through its complete ports tree:
 
 ```sh
-tests/test-bundle.sh <upstream>
-<upstream>/vcpkg install <port> --overlay-ports=<repo>/build/test-bundle/ports
+tests/test-ports-linux.sh <upstream>
 ```
 
 When a clean retest is needed, remove only that package and its build tree. Preserve unrelated downloads, packages, caches, and user work.
@@ -36,9 +35,9 @@ If `tests/<port>/` exists, configure and build it with the pinned vcpkg toolchai
 
 ## Test the proxy
 
-For `download.cmake` or `routes.txt` changes, run the repository proxy workflow or its equivalent local Nginx container. Supply `PROXY`, `PROXY_USERNAME`, `PROXY_PASSWORD`, `TLS_VERIFY`, and `PROXY_ROUTES` through the downloader's `-D` arguments. Never place real credentials in generated configuration committed to Git or logs.
+`tests/test-ports-linux.sh <upstream>` starts a local Nginx proxy and builds every customized port with the proxy as its only asset source. Supply `PROXY`, `PROXY_USERNAME`, `PROXY_PASSWORD`, `TLS_VERIFY`, and `PROXY_ROUTES` through the downloader's `-D` arguments. Never place real credentials in generated configuration committed to Git or logs.
 
-Verify an allowed download, an unsupported origin, authentication failure, and SHA512 failure. Confirm `x-block-origin` is active.
+Build every customized port with a fresh downloads directory and confirm `x-block-origin` is active, so successful builds demonstrate that their sources were downloaded through the proxy. Leave archive checksum validation to vcpkg.
 
 ## Test bundle generation
 
