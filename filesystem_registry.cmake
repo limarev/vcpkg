@@ -85,10 +85,11 @@ foreach(port_name IN LISTS overlay_entries)
 
             # Keep git from discovering a repository above DST_DIR and resolving
             # patch paths relative to that worktree instead of this port.
+            # Windows checkouts may use CRLF while overlay patches use LF.
             execute_process(
                 COMMAND "${CMAKE_COMMAND}" -E env
                     "GIT_DIR=${DST_DIR}/ports/${port_name}/.git-disabled"
-                    "${GIT_EXECUTABLE}" apply --no-index --whitespace=nowarn "${patch}"
+                    "${GIT_EXECUTABLE}" apply --no-index --ignore-space-change --whitespace=nowarn "${patch}"
                 WORKING_DIRECTORY "${DST_DIR}/ports/${port_name}"
                 RESULT_VARIABLE patch_result
                 OUTPUT_VARIABLE patch_output

@@ -1,5 +1,4 @@
 diff --git a/include/argparse/argparse.hpp b/include/argparse/argparse.hpp
-index 06d30fd..43af72d 100644
 --- a/include/argparse/argparse.hpp
 +++ b/include/argparse/argparse.hpp
 @@ -1964,6 +1964,14 @@ public:

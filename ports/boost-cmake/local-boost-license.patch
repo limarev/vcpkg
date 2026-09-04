@@ -1,5 +1,4 @@
 diff --git a/portfile.cmake b/portfile.cmake
-index 17d85c4..c7189cb 100644
 --- a/portfile.cmake
 +++ b/portfile.cmake
 @@ -24,11 +24,6 @@ file(INSTALL "${SOURCE_PATH}/include/" DESTINATION "${CURRENT_PACKAGES_DIR}/shar
@@ -17,7 +16,6 @@ index 17d85c4..c7189cb 100644
  file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug")
 diff --git a/boost-LICENSE_1_0.txt b/boost-LICENSE_1_0.txt
 new file mode 100644
-index 0000000..36b7cd9
 --- /dev/null
 +++ b/boost-LICENSE_1_0.txt
 @@ -0,0 +1,23 @@
